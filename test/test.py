@@ -26,15 +26,19 @@ def set_inputs(dut, x_bit: int, y_bit: int, start_bit: int) -> None:
 
 
 async def reset_dut(dut):
-    """Apply reset and initialize inputs."""
+    """
+    Reset similar to the Verilog testbench.
+    Wrapper reset is active-low.
+    At 50 MHz, 100 ns = 5 cycles.
+    """
     dut.ena.value = 1
     dut.uio_in.value = 0
     dut.ui_in.value = 0
 
-    # Wrapper reset is active-low
     dut.rst_n.value = 0
-    await ClockCycles(dut.clk, 5)   # 100 ns at 50 MHz
+    await ClockCycles(dut.clk, 5)
     dut.rst_n.value = 1
+
     await ClockCycles(dut.clk, 2)
 
 
@@ -58,26 +62,30 @@ async def receive_serial_q(dut) -> int:
     """
     Receive 24 quotient bits serially, LSB first.
 
-    Important:
-    - Wait for done high.
-    - Skip one extra falling edge before sampling q.
-      That aligns the cocotb capture with the actual valid serial output
-      in both RTL and GDS for this design.
+    Improvement:
+    - Wait for done to go high.
+    - Then sample q on the *stable* phase of the clock (rising edge side),
+      instead of right on the switching edge.
+    - This is usually more robust for gate-level netlists.
     """
+    # Wait until done is asserted
     while int(dut.uo_out.value[1]) == 0:
         await RisingEdge(dut.clk)
 
-    # Extra alignment edge: prevents capturing q one bit too early
-    await FallingEdge(dut.clk)
-
     q_word = 0
 
-    for i in range(WIDTH):
-        await FallingEdge(dut.clk)
-        await ReadOnly()
-        q_bit = int(dut.uo_out.value[0]) & 1
-        q_word |= (q_bit << i)
+    # First sample: move to a stable point after done is high
+    await RisingEdge(dut.clk)
+    await ReadOnly()
+    q_word |= (int(dut.uo_out.value[0]) & 1) << 0
 
+    # Remaining bits: sample once per clock cycle on the stable phase
+    for i in range(1, WIDTH):
+        await RisingEdge(dut.clk)
+        await ReadOnly()
+        q_word |= (int(dut.uo_out.value[0]) & 1) << i
+
+    # Wait until done deasserts
     while int(dut.uo_out.value[1]) == 1:
         await RisingEdge(dut.clk)
 
