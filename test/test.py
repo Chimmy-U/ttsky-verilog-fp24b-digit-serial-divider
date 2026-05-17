@@ -26,20 +26,27 @@ def set_inputs(dut, x_bit: int, y_bit: int, start_bit: int) -> None:
 
 
 async def reset_dut(dut):
-    """Reset similar to the Verilog testbench."""
+    """
+    Reset similar to the Verilog testbench.
+    With a 50 MHz clock (20 ns period), 100 ns = 5 cycles.
+    """
     dut.ena.value = 1
     dut.uio_in.value = 0
     dut.ui_in.value = 0
 
     # Wrapper reset is active-low
     dut.rst_n.value = 0
-    await ClockCycles(dut.clk, 5)   # 100 ns with 20 ns period
+    await ClockCycles(dut.clk, 5)
     dut.rst_n.value = 1
+
     await ClockCycles(dut.clk, 2)
 
 
 async def send_serial_operands(dut, x_word: int, y_word: int):
-    """Send 24-bit operands serially, LSB first, while start is high."""
+    """
+    Send 24-bit operands serially, LSB first, while start is high.
+    This matches the Verilog testbench task.
+    """
     await FallingEdge(dut.clk)
     set_inputs(dut, (x_word >> 0) & 1, (y_word >> 0) & 1, 1)
 
@@ -52,18 +59,24 @@ async def send_serial_operands(dut, x_word: int, y_word: int):
 
 
 async def receive_serial_q(dut) -> int:
-    """Receive 24 quotient bits serially, LSB first."""
-    # Espera a que done suba
+    """
+    Receive 24 quotient bits serially, LSB first.
+    Closer to the Verilog task:
+        wait(done == 1'b1);
+        for i=0..23 begin
+            @(negedge clk);
+            qword[i] = q;
+        end
+        wait(done == 1'b0);
+    """
     while True:
         await ReadOnly()
         if int(dut.uo_out.value[1]) == 1:
             break
         await RisingEdge(dut.clk)
 
-    # En GDS, q suele estabilizarse un ciclo después de done
-    await ClockCycles(dut.clk, 2)
-
     q_word = 0
+
     for i in range(WIDTH):
         await FallingEdge(dut.clk)
         await ReadOnly()
@@ -88,6 +101,7 @@ async def test_project(dut):
     await reset_dut(dut)
 
     dut._log.info("Test 1.5 / 1.0")
+
     x_real = 1.5
     y_real = 1.0
 
@@ -100,12 +114,12 @@ async def test_project(dut):
     await send_serial_operands(dut, x_word, y_word)
     q_word = await receive_serial_q(dut)
 
-    expected_real = x_real / y_real
+    expected_real = 1.75
     expected_word = float_to_fixed(expected_real)
 
     dut._log.info(f"expected_real = {expected_real:.12f}")
     dut._log.info(f"captured q_word = 0x{q_word:06X}")
-    dut._log.info(f"captured real = {fixed_to_float(q_word):.12f}")
+    dut._log.info(f"captured real   = {fixed_to_float(q_word):.12f}")
     dut._log.info(f"expected q_word = 0x{expected_word:06X}")
 
     assert q_word == expected_word, (
