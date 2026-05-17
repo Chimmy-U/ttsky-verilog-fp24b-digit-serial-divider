@@ -1,27 +1,52 @@
-![](../../workflows/gds/badge.svg) ![](../../workflows/docs/badge.svg) ![](../../workflows/test/badge.svg) ![](../../workflows/fpga/badge.svg)
+![](../../workflows/gds/badge.svg) ![](../../workflows/docs/badge.svg) ![](../../workflows/test/badge.svg) ![](../../workflows/fpga/badge.svg) [![Universidad del Quindío](https://img.shields.io/badge/Universidad-del%20Quindío-green)](https://www.uniquindio.edu.co/)
 
-# Tiny Tapeout Verilog Project Template
+# IEEE | Tiny Tapeout Verilog 24-Bit Serial Fixed-Point Binary Divider
 
-- [Read the documentation for project](docs/info.md)
+Serial divider implemented in Verilog for 24-bit fixed-point numbers with 23 fractional bits. Capable of performing normalized binary divisions within an approximate range of 0 to 1.9999999. Designed for [Tiny Tapeout](https://tinytapeout.com) SKY130.
+
+*Design proposed by the University of Quindío.*
+
+## Documentation
+
+[Read the project documentation.](docs/info.md) It covers:
+- Project description  
+- How does it work?  
+- How to test it?  
+
+## Tiny Tapeout Details
+
+| Property | Value |
+|---|---|
+| Top module | `tt_um_digit_serial_divider` |
+| Tiles | 1x1 |
+| Clock | 50 MHz (20 ns period) |
+| Process | SKY130 |
+| Language | Verilog |
+
+### Pinout
+
+#### Inputs (`ui_in`)
+
+| Pin | Function |
+|---|---|
+| `ui_in[0]` | X (Serial bit input) |
+| `ui_in[1]` | Y (Serial bit input) |
+| `ui_in[2]` | START (Start signal) |
+| `ui_in[7:3]` | Unused |
+
+#### Outputs (`uo_out`)
+
+| Pin | Function |
+|---|---|
+| `uo_out[0]` | Q (Quotient bit output) |
+| `uo_out[1]` | DONE (Indicates operation complete) |
+| `uo_out[7:2]` | Unused |
 
 ## What is Tiny Tapeout?
 
-Tiny Tapeout is an educational project that aims to make it easier and cheaper than ever to get your digital and analog designs manufactured on a real chip.
+Tiny Tapeout is an educational project aimed at making it easier and more affordable than ever to manufacture your digital and analog designs on a real chip.
 
 To learn more and get started, visit https://tinytapeout.com.
-
-## Set up your Verilog project
-
-1. Add your Verilog files to the `src` folder.
-2. Edit the [info.yaml](info.yaml) and update information about your project, paying special attention to the `source_files` and `top_module` properties. If you are upgrading an existing Tiny Tapeout project, check out our [online info.yaml migration tool](https://tinytapeout.github.io/tt-yaml-upgrade-tool/).
-3. Edit [docs/info.md](docs/info.md) and add a description of your project.
-4. Adapt the testbench to your design. See [test/README.md](test/README.md) for more information.
-
-The GitHub action will automatically build the ASIC files using [LibreLane](https://www.zerotoasiccourse.com/terminology/librelane/).
-
-## Enable GitHub actions to build the results page
-
-- [Enabling GitHub Pages](https://tinytapeout.com/faq/#my-github-action-is-failing-on-the-pages-part)
 
 ## Resources
 
@@ -31,12 +56,9 @@ The GitHub action will automatically build the ASIC files using [LibreLane](http
 - [Join the community](https://tinytapeout.com/discord)
 - [Build your design locally](https://www.tinytapeout.com/guides/local-hardening/)
 
-## What next?
+### Social Media
 
-- [Submit your design to the next shuttle](https://app.tinytapeout.com/).
-- Edit [this README](README.md) and explain your design, how it works, and how to test it.
-- Share your project on your social network of choice:
-  - LinkedIn [#tinytapeout](https://www.linkedin.com/search/results/content/?keywords=%23tinytapeout) [@TinyTapeout](https://www.linkedin.com/company/100708654/)
-  - Mastodon [#tinytapeout](https://chaos.social/tags/tinytapeout) [@matthewvenn](https://chaos.social/@matthewvenn)
-  - X (formerly Twitter) [#tinytapeout](https://twitter.com/hashtag/tinytapeout) [@tinytapeout](https://twitter.com/tinytapeout)
-  - Bluesky [@tinytapeout.com](https://bsky.app/profile/tinytapeout.com)
+- LinkedIn [#tinytapeout](https://www.linkedin.com/search/results/content/?keywords=%23tinytapeout) [@TinyTapeout](https://www.linkedin.com/company/100708654/)
+- Mastodon [#tinytapeout](https://chaos.social/tags/tinytapeout) [@matthewvenn](https://chaos.social/@matthewvenn)
+- X (formerly Twitter) [#tinytapeout](https://twitter.com/hashtag/tinytapeout) [@tinytapeout](https://twitter.com/tinytapeout)
+- Bluesky [@tinytapeout.com](https://bsky.app/profile/tinytapeout.com)
