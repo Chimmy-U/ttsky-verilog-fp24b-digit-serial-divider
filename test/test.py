@@ -3,7 +3,7 @@
 
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles, Timer
+from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles, ReadOnly
 
 WIDTH = 24
 FRAC_BITS = 23
@@ -26,18 +26,14 @@ def set_inputs(dut, x_bit: int, y_bit: int, start_bit: int) -> None:
 
 
 async def reset_dut(dut):
-    """
-    Reset active-low in the wrapper.
-    Equivalent to rst asserted for 100 ns in the original testbench.
-    At 50 MHz, 100 ns = 5 cycles.
-    """
+    """Apply reset and initialize inputs."""
     dut.ena.value = 1
     dut.uio_in.value = 0
     dut.ui_in.value = 0
 
+    # Wrapper reset is active-low
     dut.rst_n.value = 0
-    await ClockCycles(dut.clk, 5)
-
+    await ClockCycles(dut.clk, 5)   # 100 ns at 50 MHz
     dut.rst_n.value = 1
     await ClockCycles(dut.clk, 2)
 
@@ -45,7 +41,7 @@ async def reset_dut(dut):
 async def send_serial_operands(dut, x_word: int, y_word: int):
     """
     Send 24-bit operands serially, LSB first, while start is high.
-    Matches the Verilog testbench behavior.
+    Matches the Verilog testbench task.
     """
     await FallingEdge(dut.clk)
     set_inputs(dut, (x_word >> 0) & 1, (y_word >> 0) & 1, 1)
@@ -57,30 +53,28 @@ async def send_serial_operands(dut, x_word: int, y_word: int):
     await FallingEdge(dut.clk)
     set_inputs(dut, 0, 0, 0)
 
-    # Give the DUT one edge to transition from LOAD to RUN
-    await RisingEdge(dut.clk)
-
 
 async def receive_serial_q(dut) -> int:
     """
     Receive 24 quotient bits serially, LSB first.
 
-    This version is more robust for GDS:
-    - wait until done becomes high
-    - wait a small time for the gate-level netlist to settle
-    - after each falling edge, wait again before sampling q
+    Important:
+    - Wait for done high.
+    - Skip one extra falling edge before sampling q.
+      That aligns the cocotb capture with the actual valid serial output
+      in both RTL and GDS for this design.
     """
     while int(dut.uo_out.value[1]) == 0:
         await RisingEdge(dut.clk)
 
-    # Let done/q settle in gate-level simulation
-    await Timer(1, units="ns")
+    # Extra alignment edge: prevents capturing q one bit too early
+    await FallingEdge(dut.clk)
 
     q_word = 0
 
     for i in range(WIDTH):
         await FallingEdge(dut.clk)
-        await Timer(1, units="ns")   # allow q to settle after the edge
+        await ReadOnly()
         q_bit = int(dut.uo_out.value[0]) & 1
         q_word |= (q_bit << i)
 
