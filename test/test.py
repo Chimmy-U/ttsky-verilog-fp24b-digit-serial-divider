@@ -70,24 +70,24 @@ async def receive_serial_q(dut) -> int:
     """
     # Wait until done is asserted
     while int(dut.uo_out.value[1]) == 0:
-        await RisingEdge(dut.clk)
+        await FallingEdge(dut.clk)
 
     q_word = 0
 
     # First sample: move to a stable point after done is high
-    await RisingEdge(dut.clk)
+    await FallingEdge(dut.clk)
     await ReadOnly()
     q_word |= (int(dut.uo_out.value[0]) & 1) << 0
 
     # Remaining bits: sample once per clock cycle on the stable phase
     for i in range(1, WIDTH):
-        await RisingEdge(dut.clk)
+        await FallingEdge(dut.clk)
         await ReadOnly()
         q_word |= (int(dut.uo_out.value[0]) & 1) << i
 
     # Wait until done deasserts
     while int(dut.uo_out.value[1]) == 1:
-        await RisingEdge(dut.clk)
+        await FallingEdge(dut.clk)
 
     return q_word
 
