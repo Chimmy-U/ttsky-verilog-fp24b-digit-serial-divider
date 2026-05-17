@@ -26,23 +26,31 @@ def set_inputs(dut, x_bit: int, y_bit: int, start_bit: int) -> None:
 
 
 async def reset_dut(dut):
-    """Apply reset and initialize inputs."""
+    """
+    Reset similar to the Verilog testbench:
+    rst asserted for 100 ns.
+    With 50 MHz clock (20 ns period), that is 5 cycles.
+    """
     dut.ena.value = 1
     dut.uio_in.value = 0
     dut.ui_in.value = 0
 
-    # Wrapper uses rst_n, active low
+    # Wrapper reset is active-low
     dut.rst_n.value = 0
-    await ClockCycles(dut.clk, 10)
-
+    await ClockCycles(dut.clk, 5)   # 100 ns total at 50 MHz
     dut.rst_n.value = 1
-    await ClockCycles(dut.clk, 2)
 
 
 async def send_serial_operands(dut, x_word: int, y_word: int):
     """
     Send 24-bit operands serially, LSB first, while start is high.
-    Matches the behavior of the Verilog testbench.
+    This matches the Verilog task:
+        @(negedge clk);
+        start <= 1'b1;
+        x <= xin[0];
+        y <= yin[0];
+        for i=1..23: @(negedge clk); x <= xin[i]; y <= yin[i];
+        @(negedge clk); start <= 1'b0; x <= 0; y <= 0;
     """
     await FallingEdge(dut.clk)
     set_inputs(dut, (x_word >> 0) & 1, (y_word >> 0) & 1, 1)
@@ -54,14 +62,15 @@ async def send_serial_operands(dut, x_word: int, y_word: int):
     await FallingEdge(dut.clk)
     set_inputs(dut, 0, 0, 0)
 
-    # Give one clock edge for LOAD -> RUN
-    await RisingEdge(dut.clk)
-
 
 async def receive_serial_q(dut) -> int:
     """
-    Wait for done and capture 24 quotient bits serially, LSB first.
-    Samples on falling edge, like the Verilog testbench.
+    Receive 24 quotient bits serially, LSB first, exactly like the Verilog task:
+        wait(done == 1'b1);
+        for i=0..23:
+            @(negedge clk);
+            qword[i] = q;
+        wait(done == 1'b0);
     """
     while int(dut.uo_out.value[1]) == 0:
         await RisingEdge(dut.clk)
@@ -84,7 +93,7 @@ async def receive_serial_q(dut) -> int:
 async def test_project(dut):
     dut._log.info("Start")
 
-    # 50 MHz clock => period = 20 ns
+    # 50 MHz clock => 20 ns period
     clock = Clock(dut.clk, 20, unit="ns")
     cocotb.start_soon(clock.start())
 
@@ -108,13 +117,10 @@ async def test_project(dut):
     expected_real = x_real / y_real
     expected_word = float_to_fixed(expected_real)
 
-    dut._log.info(
-        f"X = {x_real}, Y = {y_real}, expected q = {expected_real:.12f}"
-    )
-    dut._log.info(
-        f"Captured q_word = 0x{q_word:06X}, as real = {fixed_to_float(q_word):.12f}"
-    )
-    dut._log.info(f"Expected q_word = 0x{expected_word:06X}")
+    dut._log.info(f"expected_real = {expected_real:.12f}")
+    dut._log.info(f"captured q_word = 0x{q_word:06X}")
+    dut._log.info(f"captured real   = {fixed_to_float(q_word):.12f}")
+    dut._log.info(f"expected q_word = 0x{expected_word:06X}")
 
     assert q_word == expected_word, (
         f"Mismatch: captured=0x{q_word:06X}, expected=0x{expected_word:06X}"
