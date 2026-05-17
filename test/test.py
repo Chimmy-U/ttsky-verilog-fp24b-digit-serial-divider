@@ -52,14 +52,16 @@ async def send_serial_operands(dut, x_word: int, y_word: int):
 
 
 async def receive_serial_q(dut) -> int:
-    """
-    Receive 24 quotient bits serially, LSB first.
-    """
+    """Receive 24 quotient bits serially, LSB first."""
+    # Espera a que done suba
     while True:
         await ReadOnly()
         if int(dut.uo_out.value[1]) == 1:
             break
         await RisingEdge(dut.clk)
+
+    # En GDS, q suele estabilizarse un ciclo después de done
+    await ClockCycles(dut.clk, 1)
 
     q_word = 0
     for i in range(WIDTH):
