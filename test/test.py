@@ -61,7 +61,7 @@ async def receive_serial_q(dut) -> int:
         await RisingEdge(dut.clk)
 
     # En GDS, q suele estabilizarse un ciclo después de done
-    await ClockCycles(dut.clk, 1)
+    await ClockCycles(dut.clk, 2)
 
     q_word = 0
     for i in range(WIDTH):
