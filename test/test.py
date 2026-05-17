@@ -74,7 +74,7 @@ async def receive_serial_q(dut) -> int:
         await RisingEdge(dut.clk)
 
     # Let done/q settle in gate-level simulation
-    await Timer(2, units="ns")
+    await Timer(1, units="ns")
 
     q_word = 0
 
