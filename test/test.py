@@ -27,9 +27,8 @@ def set_inputs(dut, x_bit: int, y_bit: int, start_bit: int) -> None:
 
 async def reset_dut(dut):
     """
-    Reset similar to the Verilog testbench:
-    rst asserted for 100 ns.
-    With 50 MHz clock (20 ns period), that is 5 cycles.
+    Reset similar to the Verilog testbench.
+    With a 50 MHz clock (20 ns period), 100 ns = 5 cycles.
     """
     dut.ena.value = 1
     dut.uio_in.value = 0
@@ -37,20 +36,16 @@ async def reset_dut(dut):
 
     # Wrapper reset is active-low
     dut.rst_n.value = 0
-    await ClockCycles(dut.clk, 5)   # 100 ns total at 50 MHz
+    await ClockCycles(dut.clk, 5)
     dut.rst_n.value = 1
+
+    await ClockCycles(dut.clk, 2)
 
 
 async def send_serial_operands(dut, x_word: int, y_word: int):
     """
     Send 24-bit operands serially, LSB first, while start is high.
-    This matches the Verilog task:
-        @(negedge clk);
-        start <= 1'b1;
-        x <= xin[0];
-        y <= yin[0];
-        for i=1..23: @(negedge clk); x <= xin[i]; y <= yin[i];
-        @(negedge clk); start <= 1'b0; x <= 0; y <= 0;
+    This matches the Verilog testbench task.
     """
     await FallingEdge(dut.clk)
     set_inputs(dut, (x_word >> 0) & 1, (y_word >> 0) & 1, 1)
@@ -65,14 +60,19 @@ async def send_serial_operands(dut, x_word: int, y_word: int):
 
 async def receive_serial_q(dut) -> int:
     """
-    Receive 24 quotient bits serially, LSB first, exactly like the Verilog task:
+    Receive 24 quotient bits serially, LSB first.
+    Closer to the Verilog task:
         wait(done == 1'b1);
-        for i=0..23:
+        for i=0..23 begin
             @(negedge clk);
             qword[i] = q;
+        end
         wait(done == 1'b0);
     """
-    while int(dut.uo_out.value[1]) == 0:
+    while True:
+        await ReadOnly()
+        if int(dut.uo_out.value[1]) == 1:
+            break
         await RisingEdge(dut.clk)
 
     q_word = 0
